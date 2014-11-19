@@ -76,7 +76,6 @@ function str_hash(str)
 end
 
 function init_gpu(gpuidx)
-  cutorch.deviceReset(gpuidx)
   cutorch.setDevice(gpuidx)
   make_deterministic(1)
 end
