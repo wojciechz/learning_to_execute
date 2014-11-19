@@ -6,6 +6,7 @@ Term Memory (LSTM) units on short snippets of python code.
 The Network is trained to predict the output of the generated programs.
 
 
+
 Execution
 =========
 
@@ -34,5 +35,8 @@ verifies that training data is correct, by evaluating 1000 samples with a python
 interpreter (python2.7 is required).
 
 
-More information about the scripts is provided at 
-https://github.com/wojciechz/learning_to_execute
+More information about the scientific work is provided at 
+http://arxiv.org/abs/1410.4615
+
+This software is located at
+https://github.com/wojciechz/learning_to_execute 
