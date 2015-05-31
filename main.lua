@@ -49,7 +49,8 @@ function create_network()
   for layer_idx = 1, params.layers do
     local prev_c         = splitted[2 * layer_idx - 1]
     local prev_h         = splitted[2 * layer_idx]
-    local next_c, next_h = lstm(i[layer_idx - 1], prev_c, prev_h)
+    local dropped        = nn.Dropout()(i[layer_idx - 1])       
+    local next_c, next_h = lstm(dropped, prev_c, prev_h)
     table.insert(next_s, next_c)
     table.insert(next_s, next_h)
     i[layer_idx] = next_h
@@ -265,7 +266,7 @@ function main()
       state_train.seed = state_train.seed + 1
       load_data(state_train)
     end
-    optim.sgd(eval_training, paramx, {learningRate=params.learningRate}, {})
+    optim.adam(eval_training, paramx, {learningRate=params.learningRate}, {})
     total_cases = total_cases + params.seq_length * params.batch_size
     epoch = ceil(step / epoch_size)
     if step % ceil(epoch_size / 2) == 10 then
