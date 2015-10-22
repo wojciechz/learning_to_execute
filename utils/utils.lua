@@ -16,7 +16,7 @@
 
 require "env"
 require "torch"
-require "cunn"
+pcall(require, 'cunn')
 require "nn"
 require "nngraph"
 require "optim"
@@ -76,14 +76,18 @@ function str_hash(str)
 end
 
 function init_gpu(gpuidx)
-  cutorch.setDevice(gpuidx)
+  if params.gpuidx > 0  then
+    cutorch.setDevice(gpuidx)
+  end
   make_deterministic(1)
 end
 
 function make_deterministic(seed)
   torch.manualSeed(seed)
-  cutorch.manualSeed(seed)
-  torch.zeros(1, 1):cuda():uniform()
+  if params.gpuidx > 0 then
+    cutorch.manualSeed(seed)
+    torch.zeros(1, 1):cuda():uniform()
+  end
 end
 
 function copy_table(to, from)
