@@ -141,7 +141,8 @@ end
 function bp(state)
   paramdx:zero()
   reset_ds()
-  if params.gpuidx > 0 then local tmp_val = torch.ones(1):cuda() else local tmp_val = torch.ones(1) end
+  local tmp_val
+  if params.gpuidx > 0 then tmp_val = torch.ones(1):cuda() else tmp_val = torch.ones(1) end
   for i = params.seq_length, 1, -1 do
     state.pos = state.pos - 1
     local tmp = model.rnns[i]:backward({state.data.x[state.pos],
