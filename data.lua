@@ -121,11 +121,25 @@ function get_data(state)
           break;
         end
       end
+     
       for j = 1, #input do
         x[idx][batch_idx] = input[j]
         y[idx][batch_idx] = target[j]
         idx = idx + 1
+        -- Added to take care of smaller state lens
+        if idx > x:size(1) then 
+          idx = 1 
+          batch_idx = batch_idx + 1
+          if batch_idx > batch_size then 
+            break
+          end
+        end
       end
+      
+      if batch_idx > batch_size then 
+            break
+      end 
+      
       if (i <= 2) then
         io.write("\tInput:\t")
         local orig = string.format("     %s", orig)

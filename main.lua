@@ -57,10 +57,13 @@ function create_network()
   local h2y              = nn.Linear(params.rnn_size, symbolsManager.vocab_size)
   local pred             = nn.LogSoftMax()(h2y(i[params.layers]))
   local err              = MaskedLoss()({pred, y})
-  local module           = nn.gModule({x, y, prev_s}, 
+  local module           = nn.gModule({x, y, prev_s},
                                       {err, nn.Identity()(next_s)})
   module:getParameters():uniform(-params.init_weight, params.init_weight)
-  return module:cuda()
+  if params.gpuidx > 0 then
+    module:cuda()
+  end
+  return module
 end
 
 function setup()
@@ -74,12 +77,20 @@ function setup()
   for j = 0, params.seq_length do
     model.s[j] = {}
     for d = 1, 2 * params.layers do
-      model.s[j][d] = torch.zeros(params.batch_size, params.rnn_size):cuda()
+      model.s[j][d] = torch.zeros(params.batch_size, params.rnn_size)
+      if params.gpuidx > 0 then
+        model.s[j][d]:cuda()
+      end
+
     end
   end
   for d = 1, 2 * params.layers do
-    model.start_s[d] = torch.zeros(params.batch_size, params.rnn_size):cuda()
-    model.ds[d] = torch.zeros(params.batch_size, params.rnn_size):cuda()
+    model.start_s[d] = torch.zeros(params.batch_size, params.rnn_size)
+    model.ds[d] = torch.zeros(params.batch_size, params.rnn_size)
+    if params.gpuidx > 0 then
+      model.start_s[d]:cuda()
+      model.ds[d]:cuda()
+    end
   end
   model.core_network = core_network
   model.rnns = cloneManyTimes(core_network, params.seq_length)
@@ -116,7 +127,9 @@ function fp(state, paramx_)
     tmp, model.s[i] = unpack(model.rnns[i]:forward({state.data.x[state.pos],
                                                     state.data.y[state.pos + 1],
                                                     model.s[i - 1]}))
-    cutorch.synchronize()
+    if params.gpuidx > 0 then
+      cutorch.synchronize()
+    end
     state.pos = state.pos + 1
     state.count = state.count + tmp[2]
     state.normal = state.normal + tmp[3]
@@ -128,14 +141,18 @@ end
 function bp(state)
   paramdx:zero()
   reset_ds()
+  local tmp_val
+  if params.gpuidx > 0 then tmp_val = torch.ones(1):cuda() else tmp_val = torch.ones(1) end
   for i = params.seq_length, 1, -1 do
     state.pos = state.pos - 1
     local tmp = model.rnns[i]:backward({state.data.x[state.pos],
                                         state.data.y[state.pos + 1],
                                         model.s[i - 1]},
-                                       {torch.ones(1):cuda(), model.ds})[3]
+                                        { tmp_val, model.ds})[3]
     copy_table(model.ds, tmp)
-    cutorch.synchronize()
+    if params.gpuidx > 0 then
+      cutorch.synchronize()
+    end
   end
   state.pos = state.pos + params.seq_length
   model.norm_dw = paramdx:norm()
@@ -169,7 +186,9 @@ function show_predictions(state)
     local tmp = model.rnns[1]:forward({state.data.x[state.pos],
                                               state.data.y[state.pos + 1],
                                               model.s[0]})[2]
-    cutorch.synchronize()
+    if params.gpuidx > 0 then
+      cutorch.synchronize()
+    end
     copy_table(model.s[0], tmp)
     local current_x = state.data.x[state.pos][batch_idx]
     input[sample_idx] = input[sample_idx] ..
@@ -204,8 +223,9 @@ function show_predictions(state)
 end
 
 function main()
+
   local cmd = torch.CmdLine()
-  cmd:option('-gpuidx', 1, 'Index of GPU on which job should be executed.')
+  cmd:option('-gpuidx', 1, 'Index of GPU on which job should be executed. 0 for CPU')
   cmd:option('-target_length', 6, 'Length of the target expression.')
   cmd:option('-target_nesting', 3, 'Nesting of the target expression.')
   -- Available strategies: baseline, naive, mix, blend.
@@ -213,40 +233,44 @@ function main()
   cmd:text()
   local opt = cmd:parse(arg)
 
+  params = {batch_size=100,
+            seq_length=50,
+            layers=2,
+            rnn_size=400,
+            init_weight=0.08,
+            learningRate=0.5,
+            max_grad_norm=5,
+            target_length=opt.target_length,
+            target_nesting=opt.target_nesting,
+            target_accuracy=0.95,
+            current_length=1,
+            current_nesting=1,
+            gpuidx = opt.gpuidx}
+
   init_gpu(opt.gpuidx)
-  params =      {batch_size=100,
-                 seq_length=50,
-                 layers=2,
-                 rnn_size=400,
-                 init_weight=0.08,
-                 learningRate=0.5,
-                 max_grad_norm=5,
-                 target_length=opt.target_length,
-                 target_nesting=opt.target_nesting,
-                 target_accuracy=0.95,
-                 current_length=1,
-                 current_nesting=1}
   state_train = {hardness=_G[opt.strategy],
-                 len=10001,
-                 seed=1,
-                 kind=0,
-                 batch_size=params.batch_size,
-                 name="Training"}
+    len=math.min(1001, params.seq_length + 1),
+    seed=1,
+    kind=0,
+    batch_size=params.batch_size,
+    name="Training" }
   state_val =   {hardness=current_hardness,
-                 len=501,
-                 seed=1,
-                 kind=1,
-                 batch_size=params.batch_size,
-                 name="Validation"}
+    len=math.min(501, params.seq_length + 1),
+    seed=1,
+    kind=1,
+    batch_size=params.batch_size,
+    name="Validation" }
+
   state_test =  {hardness=target_hardness,
-                 len=501,
-                 seed=1,
-                 kind=2,
-                 batch_size=params.batch_size,
-                 name="Test"}
+    len=math.min(501, params.seq_length + 1),
+    seed=1,
+    kind=2,
+    batch_size=params.batch_size,
+    name="Test"}
   print("Network parameters:")
   print(params)
-  local states = {state_train, state_val, state_test}
+  local states = {state_train, state_val, state_test }
+
   for _, state in pairs(states) do
     reset_state(state)
     assert(state.len % params.seq_length == 1)
@@ -275,16 +299,16 @@ function main()
       local accs = ""
       for _, state in pairs(states) do
         accs = string.format('%s, %s acc.=%.2f%%',
-                             accs, state.name, 100.0 * state.acc)
+          accs, state.name, 100.0 * state.acc)
       end
       print('epoch=' .. epoch .. accs ..
-            ', current length=' .. params.current_length ..
-            ', current nesting=' .. params.current_nesting ..
-            ', characters per sec.=' .. cps ..
-            ', learning rate=' .. string.format("%.3f", params.learningRate))
+        ', current length=' .. params.current_length ..
+        ', current nesting=' .. params.current_nesting ..
+        ', characters per sec.=' .. cps ..
+        ', learning rate=' .. string.format("%.3f", params.learningRate))
       if (state_val.acc > params.target_accuracy) or
-         (#train_accs >= 5 and 
-          train_accs[#train_accs - 4] > state_train.acc) then
+        (#train_accs >= 5 and
+        train_accs[#train_accs - 4] > state_train.acc) then
         if not make_harder() then
           params.learningRate = params.learningRate * 0.8
         end
@@ -304,7 +328,7 @@ function main()
     end
     if step % 33 == 0 then
       collectgarbage()
-    end 
+    end
   end
   print("Training is over.")
 end
