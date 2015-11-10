@@ -61,9 +61,10 @@ function create_network()
                                       {err, nn.Identity()(next_s)})
   module:getParameters():uniform(-params.init_weight, params.init_weight)
   if params.gpuidx > 0 then
-    module:cuda()
+    return module:cuda()
+  else
+    return module
   end
-  return module
 end
 
 function setup()
@@ -79,7 +80,7 @@ function setup()
     for d = 1, 2 * params.layers do
       model.s[j][d] = torch.zeros(params.batch_size, params.rnn_size)
       if params.gpuidx > 0 then
-        model.s[j][d]:cuda()
+        model.s[j][d] = model.s[j][d]:cuda()
       end
 
     end
@@ -88,8 +89,8 @@ function setup()
     model.start_s[d] = torch.zeros(params.batch_size, params.rnn_size)
     model.ds[d] = torch.zeros(params.batch_size, params.rnn_size)
     if params.gpuidx > 0 then
-      model.start_s[d]:cuda()
-      model.ds[d]:cuda()
+      model.start_s[d] = model.start_s[d]:cuda()
+      model.ds[d] = model.ds[d]:cuda()
     end
   end
   model.core_network = core_network
