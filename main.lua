@@ -250,7 +250,7 @@ function main()
 
   init_gpu(opt.gpuidx)
   state_train = {hardness=_G[opt.strategy],
-    len=math.max(1001, params.seq_length + 1),
+    len=math.max(10001, params.seq_length + 1),
     seed=1,
     kind=0,
     batch_size=params.batch_size,
