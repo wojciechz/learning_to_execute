@@ -250,20 +250,20 @@ function main()
 
   init_gpu(opt.gpuidx)
   state_train = {hardness=_G[opt.strategy],
-    len=math.min(1001, params.seq_length + 1),
+    len=math.max(1001, params.seq_length + 1),
     seed=1,
     kind=0,
     batch_size=params.batch_size,
     name="Training" }
   state_val =   {hardness=current_hardness,
-    len=math.min(501, params.seq_length + 1),
+    len=math.max(501, params.seq_length + 1),
     seed=1,
     kind=1,
     batch_size=params.batch_size,
     name="Validation" }
 
   state_test =  {hardness=target_hardness,
-    len=math.min(501, params.seq_length + 1),
+    len=math.max(501, params.seq_length + 1),
     seed=1,
     kind=2,
     batch_size=params.batch_size,
