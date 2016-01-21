@@ -15,12 +15,12 @@ software requires an NVIDIA GPU.
 
 To execute the program, call:
 
-  torch main.lua
+    torch main.lua
 
-This program starts training the LSTM, and displays intermediate results. main.lua can be
-executed with the following options
+This program starts training the LSTM and displays intermediate results. main.lua can be
+executed with the following options:
 
-  torch main.lua -gpuidx 1 -target_length 6 -target_nesting 3
+    torch main.lua -gpuidx 1 -target_length 6 -target_nesting 3
 
 - gpuidx: chooses a GPU for the program
 - target_length: is a maximum number of digits in every number generated in test 
@@ -29,9 +29,9 @@ executed with the following options
 
 Moreover, the command
 
-  torch data.lua
+    torch data.lua
 
-verifies that training data is correct, by evaluating 1000 samples with a python 
+verifies that training data is correct by evaluating 1000 samples with a python 
 interpreter (python2.7 is required).
 
 
