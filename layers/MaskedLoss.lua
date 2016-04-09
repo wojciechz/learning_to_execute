@@ -41,14 +41,13 @@ end
 
 function MaskedLoss:updateGradInput(input)
   local input, target = unpack(input)
-  self.gradInput:resizeAs(input)
-  self.gradInput:zero()
+  local gradInput = input.new(input:size()):fill(0)
   local z = -1 / target:size(1)
-  local gradInput = self.gradInput
   for i=1,target:size(1) do
     if target[i] ~= 0 then
       gradInput[i][target[i]] = z
     end
   end
+  self.gradInput = {gradInput, torch.Tensor({0}), torch.Tensor({0})}
   return self.gradInput
 end

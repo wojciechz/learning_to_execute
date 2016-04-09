@@ -61,9 +61,10 @@ function create_network()
                                       {err, nn.Identity()(next_s)})
   module:getParameters():uniform(-params.init_weight, params.init_weight)
   if params.gpuidx > 0 then
-    module:cuda()
+    return module:cuda()
+  else
+    return module
   end
-  return module
 end
 
 function setup()
@@ -79,7 +80,7 @@ function setup()
     for d = 1, 2 * params.layers do
       model.s[j][d] = torch.zeros(params.batch_size, params.rnn_size)
       if params.gpuidx > 0 then
-        model.s[j][d]:cuda()
+        model.s[j][d] = model.s[j][d]:cuda()
       end
 
     end
@@ -88,8 +89,8 @@ function setup()
     model.start_s[d] = torch.zeros(params.batch_size, params.rnn_size)
     model.ds[d] = torch.zeros(params.batch_size, params.rnn_size)
     if params.gpuidx > 0 then
-      model.start_s[d]:cuda()
-      model.ds[d]:cuda()
+      model.start_s[d] = model.start_s[d]:cuda()
+      model.ds[d] = model.ds[d]:cuda()
     end
   end
   model.core_network = core_network
@@ -249,20 +250,20 @@ function main()
 
   init_gpu(opt.gpuidx)
   state_train = {hardness=_G[opt.strategy],
-    len=math.min(1001, params.seq_length + 1),
+    len=math.max(10001, params.seq_length + 1),
     seed=1,
     kind=0,
     batch_size=params.batch_size,
     name="Training" }
   state_val =   {hardness=current_hardness,
-    len=math.min(501, params.seq_length + 1),
+    len=math.max(501, params.seq_length + 1),
     seed=1,
     kind=1,
     batch_size=params.batch_size,
     name="Validation" }
 
   state_test =  {hardness=target_hardness,
-    len=math.min(501, params.seq_length + 1),
+    len=math.max(501, params.seq_length + 1),
     seed=1,
     kind=2,
     batch_size=params.batch_size,
